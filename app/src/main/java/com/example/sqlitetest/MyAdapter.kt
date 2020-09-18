@@ -9,8 +9,11 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
-import com.example.sqlitetest.dbModel.Companion.col_Id
-import com.example.sqlitetest.dbModel.Companion.tableName
+import com.example.sqlitetest.Room.MyDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MyAdapter(var mdata:MutableList<EmpData>) :RecyclerView.Adapter<MyAdapter.myViewHolder>(){
        lateinit var context:Context
@@ -21,6 +24,7 @@ class MyAdapter(var mdata:MutableList<EmpData>) :RecyclerView.Adapter<MyAdapter.
         var delete:ImageView=view.findViewById(R.id.delete)
 
     }
+
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): myViewHolder {
         context=parent.context
@@ -33,11 +37,14 @@ class MyAdapter(var mdata:MutableList<EmpData>) :RecyclerView.Adapter<MyAdapter.
         holder.emailField.setText(mdata[position].email)
         holder.mobNoField.setText(mdata[position].mob)
         holder.delete.setOnClickListener(){
-            var db=dbHelper(context)
-            var database=db.readableDatabase
-            database.delete(tableName,"$col_Id=?",arrayOf(mdata[position].id.toString()))
-            mdata.removeAt(position)
-            notifyDataSetChanged()
+            val Db=MyDatabase.getDatabase(context).getUserDao()
+            GlobalScope.launch {
+                Db.delete(mdata[position].id)
+                mdata.removeAt(position)
+                withContext(Dispatchers.Main) {
+                    notifyDataSetChanged()
+                }
+            }
         }
         holder.itemView.setOnClickListener(){
                 var intent: Intent =Intent(context,UpdateData::class.java)

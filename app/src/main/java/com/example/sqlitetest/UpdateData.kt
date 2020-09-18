@@ -4,54 +4,71 @@ import android.content.ContentValues
 import android.database.Cursor
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
-import com.example.sqlitetest.dbModel.Companion.col_Id
-import com.example.sqlitetest.dbModel.Companion.col_email
-import com.example.sqlitetest.dbModel.Companion.col_mobileNumber
-import com.example.sqlitetest.dbModel.Companion.col_name
-import com.example.sqlitetest.dbModel.Companion.tableName
+import androidx.core.content.ContextCompat
+import com.example.sqlitetest.Room.EmpDataEntity
+import com.example.sqlitetest.Room.MyDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class UpdateData : AppCompatActivity() {
-    lateinit var namee:EditText
-    lateinit var email:EditText
-    lateinit var mobile:EditText
-    lateinit var update:Button
-     var id:Int=-1
+    lateinit var namee: EditText
+    lateinit var email: EditText
+    lateinit var mobile: EditText
+    lateinit var update: Button
+    var id: Int = -1
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_update_data)
-        namee=findViewById(R.id.Name)
-        email=findViewById(R.id.Email)
-        mobile=findViewById(R.id.mobile)
-        update=findViewById(R.id.update)
-        id=intent.getIntExtra("Id",-1)
-        if(id==-1){
-            Toast.makeText(this,"False id passed "+id,Toast.LENGTH_LONG).show()
-        }
-        else{
-            var cursor=readData(id)
-            if(cursor.count==0){
-                Toast.makeText(this,"No data Found",Toast.LENGTH_LONG).show()
-            }
-            else{
-                var nameIndex=cursor.getColumnIndex(col_name)
-                var emailInedex=cursor.getColumnIndex(col_email)
-                var mobilIndex=cursor.getColumnIndex(col_mobileNumber)
-                while(cursor.moveToNext()){
-                    namee.setText(cursor.getString(nameIndex))
-                    email.setText(cursor.getString(emailInedex))
-                    mobile.setText(cursor.getLong(mobilIndex).toString())
-                }
+        namee = findViewById(R.id.Name)
+        email = findViewById(R.id.Email)
+        mobile = findViewById(R.id.mobile)
+        update = findViewById(R.id.update)
+        id = intent.getIntExtra("Id", -1)
+        if (id == -1) {
+            Toast.makeText(this, "False id passed " + id, Toast.LENGTH_LONG).show()
+        } else {
+            var DbData: EmpDataEntity? = null
+            GlobalScope.launch {
+                DbData = MyDatabase.getDatabase(this@UpdateData).getUserDao().getsingleRow(id)
+                if (DbData == null) {
+                    Log.d("Record", "No record found")
+                } else {
 
-                update.setOnClickListener(){
-                    var nameString=namee.text.toString()
-                    var emailString=email.text.toString()
-                    var mobileString:Long= mobile.text.toString().toLong()
-                    updateDatabase(nameString,emailString,mobileString)
+
+                    withContext(Dispatchers.Main) {
+                        namee.setText(DbData!!.col_Name)
+                        email.setText(DbData!!.col_Email)
+                        mobile.setText(DbData!!.col_Phoone.toString())
+                        update.setOnClickListener()
+                        {
+                            var nameString = namee.text.toString()
+                            var emailString = email.text.toString()
+                            var mobileString: Long = mobile.text.toString().toLong()
+                            updateDatabase(nameString, emailString, mobileString, DbData?.col_Id!!)
+                            update.setBackgroundColor(
+                                ContextCompat.getColor(
+                                    this@UpdateData,
+                                    R.color.grey
+                                )
+                            )
+                            update.setTextColor(
+                                ContextCompat.getColor(
+                                    this@UpdateData,
+                                    android.R.color.black
+                                )
+                            )
+                            update.isEnabled = false
+                        }
+                    }
                 }
             }
+
         }
     }
 
@@ -72,23 +89,17 @@ class UpdateData : AppCompatActivity() {
         }
         return true
     }
-    fun readData(id:Int): Cursor {
-        var database=dbHelper(this).readableDatabase
-        var projection= arrayOf(col_name, col_email, col_mobileNumber)
-        var cursor=database.query(tableName,projection,"$col_Id=?",arrayOf(id.toString()),null,null,null)
-        return cursor
-    }
 
-    fun updateDatabase(name:String,email:String,mobile:Long){
-        if(validateInputs(name,email,mobile.toString())){
-            var values = ContentValues().apply {
-                put(col_name, name)
-                put(col_email, email)
-                put(col_mobileNumber, mobile)
+    fun updateDatabase(name: String, email: String, mobile: Long, id: Int) {
+        if (validateInputs(name, email, mobile.toString())) {
+            GlobalScope.launch {
+                val Db = MyDatabase.getDatabase(this@UpdateData).getUserDao()
+                var empData = EmpDataEntity(name, email, mobile)
+                empData.col_Id = id
+                Db.update(empData)
+                Log.d("updated", "success")
+
             }
-            var db=dbHelper(this).writableDatabase
-            var up = db.update(tableName, values, "$col_Id=$id", null)
-            Toast.makeText(this, "$up affected", Toast.LENGTH_LONG).show()
         }
     }
 }
